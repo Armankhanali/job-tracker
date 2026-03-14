@@ -10,15 +10,25 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { StatusBadge } from "@/components/status-badge"
-import type { JobApplication } from "@/lib/types"
+import type { ApplicationStatus, JobApplication } from "@/lib/types"
+
+const statuses: ApplicationStatus[] = ["Shortlisted", "Applied", "Interview", "Offer", "Rejected"]
 
 interface ApplicationsTableProps {
   applications: JobApplication[]
   onDelete: (id: string) => void
+  onStatusChange: (id: string, status: ApplicationStatus) => void
 }
 
-export function ApplicationsTable({ applications, onDelete }: ApplicationsTableProps) {
+export function ApplicationsTable({ applications, onDelete, onStatusChange }: ApplicationsTableProps) {
   function formatDate(dateStr: string) {
     const date = new Date(dateStr)
     return date.toLocaleDateString("en-US", {
@@ -72,7 +82,21 @@ export function ApplicationsTable({ applications, onDelete }: ApplicationsTableP
             <TableCell className="font-medium">{app.company}</TableCell>
             <TableCell>{app.role}</TableCell>
             <TableCell>
-              <StatusBadge status={app.status} />
+              <Select
+                value={app.status}
+                onValueChange={(val) => onStatusChange(app.id, val as ApplicationStatus)}
+              >
+                <SelectTrigger className="w-[130px] h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {statuses.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      <StatusBadge status={s} />
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </TableCell>
             <TableCell>{formatDate(app.dateAdded)}</TableCell>
             <TableCell className="max-w-[300px] truncate text-muted-foreground">

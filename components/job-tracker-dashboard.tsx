@@ -7,25 +7,36 @@ import { AddApplicationDialog } from "@/components/add-application-dialog"
 import { StatusFilter } from "@/components/status-filter"
 import { SortSelect, type SortOption } from "@/components/sort-select"
 import { ApplicationsTable } from "@/components/applications-table"
-import { getApplications, saveApplications } from "@/lib/store"
+import {
+  fetchApplications,
+  addApplication,
+  deleteApplication,
+  updateApplicationStatus,
+} from "@/lib/supabase-applications"
 import type { ApplicationStatus, JobApplication } from "@/lib/types"
 
 export function JobTrackerDashboard() {
   const [applications, setApplications] = useState<JobApplication[]>([])
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "All">("All")
   const [sortBy, setSortBy] = useState<SortOption>("date-desc")
-  const [mounted, setMounted] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setMounted(true)
-    setApplications(getApplications())
-  }, [])
-
-  useEffect(() => {
-    if (mounted) {
-      saveApplications(applications)
+    async function load() {
+      try {
+        setError(null)
+        const data = await fetchApplications()
+        setApplications(data)
+      } catch (e) {
+        console.error("[JobTrackerDashboard] Failed to load applications:", e)
+        setError(e instanceof Error ? e.message : "Failed to load applications")
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [applications, mounted])
+    load()
+  }, [])
 
   const statusOrder: Record<ApplicationStatus, number> = {
     Shortlisted: 0,
@@ -61,16 +72,33 @@ export function JobTrackerDashboard() {
     return result
   }, [applications, statusFilter, sortBy])
 
-  function handleAddApplication(newApp: Omit<JobApplication, "id">) {
-    const application: JobApplication = {
-      ...newApp,
-      id: crypto.randomUUID(),
+  async function handleAddApplication(newApp: Omit<JobApplication, "id">) {
+    try {
+      const application = await addApplication(newApp)
+      setApplications((prev) => [application, ...prev])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to add application")
     }
-    setApplications((prev) => [application, ...prev])
   }
 
-  function handleDeleteApplication(id: string) {
-    setApplications((prev) => prev.filter((app) => app.id !== id))
+  async function handleDeleteApplication(id: string) {
+    try {
+      await deleteApplication(id)
+      setApplications((prev) => prev.filter((app) => app.id !== id))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete application")
+    }
+  }
+
+  async function handleStatusChange(id: string, status: ApplicationStatus) {
+    try {
+      await updateApplicationStatus(id, status)
+      setApplications((prev) =>
+        prev.map((app) => (app.id === id ? { ...app, status } : app))
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update status")
+    }
   }
 
   const stats = useMemo(() => {
@@ -84,8 +112,20 @@ export function JobTrackerDashboard() {
     }
   }, [applications])
 
-  if (!mounted) {
-    return null
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Loading applications...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-destructive">{error}</p>
+      </div>
+    )
   }
 
   return (
@@ -165,7 +205,11 @@ export function JobTrackerDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <ApplicationsTable applications={filteredAndSortedApplications} onDelete={handleDeleteApplication} />
+            <ApplicationsTable
+              applications={filteredAndSortedApplications}
+              onDelete={handleDeleteApplication}
+              onStatusChange={handleStatusChange}
+            />
           </CardContent>
         </Card>
       </div>

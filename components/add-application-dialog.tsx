@@ -33,7 +33,7 @@ export function AddApplicationDialog({ onAdd }: AddApplicationDialogProps) {
   const [open, setOpen] = useState(false)
   const [company, setCompany] = useState("")
   const [role, setRole] = useState("")
-  const [status, setStatus] = useState<ApplicationStatus>("Shortlisted")
+  const [status, setStatus] = useState<ApplicationStatus>("Applied")
   const [dateAdded, setDateAdded] = useState(
     new Date().toISOString().split("T")[0]
   )
@@ -53,7 +53,7 @@ export function AddApplicationDialog({ onAdd }: AddApplicationDialogProps) {
 
     setCompany("")
     setRole("")
-    setStatus("Shortlisted")
+    setStatus("Applied")
     setDateAdded(new Date().toISOString().split("T")[0])
     setNotes("")
     setOpen(false)

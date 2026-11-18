@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { BriefcaseIcon, LogOutIcon } from "lucide-react"
+import { BriefcaseIcon, LockIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { supabase } from "@/lib/supabase"
+import { lock, forgetToken } from "@/lib/pin"
+import { LOCKED_EVENT } from "@/components/pin-gate"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AddApplicationDialog } from "@/components/add-application-dialog"
 import { StatusFilter } from "@/components/status-filter"
@@ -14,7 +15,13 @@ import {
   addApplication,
   deleteApplication,
   updateApplicationStatus,
+  LockedError,
 } from "@/lib/supabase-applications"
+
+function relock() {
+  forgetToken()
+  window.dispatchEvent(new Event(LOCKED_EVENT))
+}
 import type { ApplicationStatus, JobApplication } from "@/lib/types"
 
 export function JobTrackerDashboard() {
@@ -31,6 +38,7 @@ export function JobTrackerDashboard() {
         const data = await fetchApplications()
         setApplications(data)
       } catch (e) {
+        if (e instanceof LockedError) return relock()
         console.error("[JobTrackerDashboard] Failed to load applications:", e)
         setError(e instanceof Error ? e.message : "Failed to load applications")
       } finally {
@@ -79,6 +87,7 @@ export function JobTrackerDashboard() {
       const application = await addApplication(newApp)
       setApplications((prev) => [application, ...prev])
     } catch (e) {
+      if (e instanceof LockedError) return relock()
       setError(e instanceof Error ? e.message : "Failed to add application")
     }
   }
@@ -88,6 +97,7 @@ export function JobTrackerDashboard() {
       await deleteApplication(id)
       setApplications((prev) => prev.filter((app) => app.id !== id))
     } catch (e) {
+      if (e instanceof LockedError) return relock()
       setError(e instanceof Error ? e.message : "Failed to delete application")
     }
   }
@@ -99,6 +109,7 @@ export function JobTrackerDashboard() {
         prev.map((app) => (app.id === id ? { ...app, status } : app))
       )
     } catch (e) {
+      if (e instanceof LockedError) return relock()
       setError(e instanceof Error ? e.message : "Failed to update status")
     }
   }
@@ -145,10 +156,13 @@ export function JobTrackerDashboard() {
               variant="ghost"
               size="sm"
               className="ml-auto"
-              onClick={() => supabase.auth.signOut()}
+              onClick={async () => {
+                await lock().catch(() => {})
+                relock()
+              }}
             >
-              <LogOutIcon />
-              Sign out
+              <LockIcon />
+              Lock
             </Button>
           </div>
         </header>

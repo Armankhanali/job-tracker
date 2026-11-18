@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { BriefcaseIcon } from "lucide-react"
+import { BriefcaseIcon, LogOutIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AddApplicationDialog } from "@/components/add-application-dialog"
 import { StatusFilter } from "@/components/status-filter"
@@ -139,6 +141,15 @@ export function JobTrackerDashboard() {
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               {"Arman's Job Application Tracker"}
             </h1>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto"
+              onClick={() => supabase.auth.signOut()}
+            >
+              <LogOutIcon />
+              Sign out
+            </Button>
           </div>
         </header>
 

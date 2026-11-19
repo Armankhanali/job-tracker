@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { BriefcaseIcon, LogOutIcon } from "lucide-react"
+import { BriefcaseIcon, LockIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { supabase } from "@/lib/supabase"
+import { useTrackerSession } from "@/components/pin-gate"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AddApplicationDialog } from "@/components/add-application-dialog"
 import { StatusFilter } from "@/components/status-filter"
@@ -14,10 +14,12 @@ import {
   addApplication,
   deleteApplication,
   updateApplicationStatus,
+  TrackerLockedError,
 } from "@/lib/supabase-applications"
 import type { ApplicationStatus, JobApplication } from "@/lib/types"
 
 export function JobTrackerDashboard() {
+  const { token, lock, expire } = useTrackerSession()
   const [applications, setApplications] = useState<JobApplication[]>([])
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "All">("All")
   const [sortBy, setSortBy] = useState<SortOption>("date-desc")
@@ -28,17 +30,17 @@ export function JobTrackerDashboard() {
     async function load() {
       try {
         setError(null)
-        const data = await fetchApplications()
+        const data = await fetchApplications(token)
         setApplications(data)
       } catch (e) {
-        console.error("[JobTrackerDashboard] Failed to load applications:", e)
+        if (e instanceof TrackerLockedError) return expire()
         setError(e instanceof Error ? e.message : "Failed to load applications")
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [])
+  }, [token, expire])
 
   const statusOrder: Record<ApplicationStatus, number> = {
     Shortlisted: 0,
@@ -76,29 +78,32 @@ export function JobTrackerDashboard() {
 
   async function handleAddApplication(newApp: Omit<JobApplication, "id">) {
     try {
-      const application = await addApplication(newApp)
+      const application = await addApplication(token, newApp)
       setApplications((prev) => [application, ...prev])
     } catch (e) {
+      if (e instanceof TrackerLockedError) return expire()
       setError(e instanceof Error ? e.message : "Failed to add application")
     }
   }
 
   async function handleDeleteApplication(id: string) {
     try {
-      await deleteApplication(id)
+      await deleteApplication(token, id)
       setApplications((prev) => prev.filter((app) => app.id !== id))
     } catch (e) {
+      if (e instanceof TrackerLockedError) return expire()
       setError(e instanceof Error ? e.message : "Failed to delete application")
     }
   }
 
   async function handleStatusChange(id: string, status: ApplicationStatus) {
     try {
-      await updateApplicationStatus(id, status)
+      await updateApplicationStatus(token, id, status)
       setApplications((prev) =>
         prev.map((app) => (app.id === id ? { ...app, status } : app))
       )
     } catch (e) {
+      if (e instanceof TrackerLockedError) return expire()
       setError(e instanceof Error ? e.message : "Failed to update status")
     }
   }
@@ -145,10 +150,10 @@ export function JobTrackerDashboard() {
               variant="ghost"
               size="sm"
               className="ml-auto"
-              onClick={() => supabase.auth.signOut()}
+              onClick={() => lock()}
             >
-              <LogOutIcon />
-              Sign out
+              <LockIcon />
+              Lock
             </Button>
           </div>
         </header>

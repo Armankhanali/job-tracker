@@ -1,10 +1,10 @@
-import { AuthGate } from "@/components/auth-gate"
+import { PinGate } from "@/components/pin-gate"
 import { JobTrackerDashboard } from "@/components/job-tracker-dashboard"
 
 export default function Page() {
   return (
-    <AuthGate>
+    <PinGate>
       <JobTrackerDashboard />
-    </AuthGate>
+    </PinGate>
   )
 }
